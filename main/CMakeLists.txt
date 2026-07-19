@@ -25,7 +25,7 @@ idf_component_register(
         esp_netif
         esp_event
         log
-        esp_driver_uart
+        driver
         esp_http_server
         esp_hw_support
         esp_system
@@ -35,5 +35,4 @@ idf_component_register(
         cjson
         json
         lwip
-        driver
 )
