@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>RID 无人机管理系统</title>
+<style>
+:root{--bg:#0a0e17;--card:#141b27;--accent:#00d4ff;--accent2:#7c3aed;--text:#e2e8f0;--text2:#94a3b8;--danger:#ef4444;--success:#22c55e;--warn:#f59e0b;--border:#1e293b}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:linear-gradient(135deg,var(--accent2),#2563eb);padding:20px 16px;text-align:center;position:sticky;top:0;z-index:100}
+header h1{font-size:1.4em;font-weight:700}
+header .sub{font-size:.85em;opacity:.85;margin-top:4px}
+nav{display:flex;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:72px;z-index:99}
+nav a{flex:1;min-width:80px;text-align:center;padding:12px 8px;color:var(--text2);text-decoration:none;font-size:.85em;font-weight:500;border-bottom:2px solid transparent}
+nav a.active{color:var(--accent);border-bottom-color:var(--accent)}
+.page{display:none;padding:16px;animation:fadeIn .3s}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:16px;padding:18px 16px;text-align:center;border:1px solid var(--border)}
+.stat-card .num{font-size:2em;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-card .label{font-size:.8em;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:1px}
+.card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid var(--border)}
+.card h3{font-size:1em;margin-bottom:12px;color:var(--accent)}
+.drone-list .drone-item{display:flex;align-items:center;padding:14px 12px;background:var(--bg);border-radius:12px;margin-bottom:8px;cursor:pointer;border:1px solid transparent}
+.drone-list .drone-item:hover{border-color:var(--accent);transform:translateX(4px)}
+.drone-item .icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent2),#2563eb);display:flex;align-items:center;justify-content:center;font-size:1.4em;margin-right:12px;flex-shrink:0}
+.drone-item .info{flex:1;min-width:0}
+.drone-item .info .name{font-weight:600;font-size:.95em}
+.drone-item .info .meta{font-size:.78em;color:var(--text2);margin-top:2px}
+.drone-item .arrow{color:var(--text2);font-size:1.2em}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.status-dot.online{background:var(--success)}
+.status-dot.offline{background:var(--text2)}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.detail-grid .kv{background:var(--bg);padding:10px 12px;border-radius:8px}
+.detail-grid .kv .k{font-size:.75em;color:var(--text2);text-transform:uppercase}
+.detail-grid .kv .v{font-size:.95em;font-weight:500;margin-top:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 20px;border-radius:10px;font-size:.9em;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none;gap:6px}
+.btn-primary{background:linear-gradient(135deg,var(--accent2),#2563eb);color:#fff}
+.btn-primary:hover{transform:translateY(-1px)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-block{display:flex;width:100%}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.8em;color:var(--text2);margin-bottom:6px;text-transform:uppercase}
+.form-group input,.form-group select{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9em}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toggle{position:relative;width:52px;height:28px;flex-shrink:0}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;background:var(--border);border-radius:28px;cursor:pointer;transition:.3s}
+.toggle .slider:before{content:"";position:absolute;height:22px;width:22px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.slider{background:var(--success)}
+.toggle input:checked+.slider:before{transform:translateX(24px)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-state .icon{font-size:3em;margin-bottom:12px}
+.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:.7em;font-weight:600}
+.badge-online{background:rgba(34,197,94,.15);color:var(--success)}
+.badge-offline{background:rgba(148,163,184,.15);color:var(--text2)}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mt-sm{margin-top:12px}
+.mb-sm{margin-bottom:12px}
+.footer{text-align:center;padding:24px;color:var(--text2);font-size:.75em}
+</style>
+</head>
+<body>
+<header><h1>🛸 RID 无人机管理系统</h1><div class="sub">ESP32-C3 Remote ID Scanner</div></header>
+<nav>
+<a href="#dashboard" class="active" onclick="switchTab('dashboard')">📊 仪表盘</a>
+<a href="#drones" onclick="switchTab('drones')">🚁 无人机</a>
+<a href="#simulator" onclick="switchTab('simulator')">📡 模拟器</a>
+<a href="#about" onclick="switchTab('about')">ℹ️ 关于</a>
+</nav>
+<div id="dashboard" class="page active">
+<div class="stats">
+<div class="stat-card"><div class="num" id="stat-online">0</div><div class="label">在线无人机</div></div>
+<div class="stat-card"><div class="num" id="stat-total">0</div><div class="label">总接收数</div></div>
+<div class="stat-card"><div class="num" id="stat-heap">0</div><div class="label">可用内存 KB</div></div>
+<div class="stat-card"><div class="num" id="stat-sim">OFF</div><div class="label">模拟器状态</div></div>
+</div>
+<div class="card"><h3>📋 最近无人机</h3><div class="drone-list" id="recent-drones"></div></div>
+</div>
+<div id="drones" class="page">
+<div class="flex-between mb-sm"><h3 style="color:var(--accent)">🚁 无人机列表</h3><span id="drone-count"></span></div>
+<div class="card"><div class="drone-list" id="all-drones"></div><div class="empty-state" id="drones-empty"><div class="icon">📭</div><p>暂无无人机数据</p></div></div>
+</div>
+<div id="drone-detail" class="page">
+<div class="flex-between mb-sm"><a href="#" onclick="switchTab('drones')" style="color:var(--accent);text-decoration:none;font-size:.9em">← 返回列表</a></div>
+<div class="card" id="detail-content"></div>
+<div class="card"><h3>🗺️ 导航</h3>
+<a id="nav-drone" class="btn btn-primary btn-block" href="#" target="_blank">📍 一键导航到无人机位置 (高德地图)</a>
+<p id="map-hint" style="font-size:.8em;color:var(--text2);margin-top:8px"></p>
+<a id="nav-operator" class="btn btn-outline btn-block mt-sm" href="#" target="_blank">🧑‍✈️ 导航到飞手位置 (高德地图)</a>
+</div></div>
+<div id="simulator" class="page">
+<div class="card"><div class="flex-between"><h3>📡 模拟无人机发送</h3>
+<label class="toggle"><input type="checkbox" id="sim-toggle" onchange="toggleSimulator()"><span class="slider"></span></label></div></div>
+<div class="card"><h3>⚙️ 模拟参数</h3>
+<div class="form-group"><label>无人机序列号</label><input type="text" id="sim-uasid" maxlength="20" placeholder="UAV20240720001"></div>
+<div class="form-group"><label>无人机型号</label><input type="text" id="sim-name" maxlength="20" placeholder="DJI Mavic 3"></div>
+<div class="form-group"><label>无人机类型</label><select id="sim-type"><option value="0">未声明</option><option value="1">固定翼</option><option value="2">旋翼</option><option value="3">混合翼</option><option value="4">直升机</option></select></div>
+<div class="form-row"><div class="form-group"><label>纬度</label><input type="number" id="sim-lat" step="0.000001" placeholder="39.904200"></div><div class="form-group"><label>经度</label><input type="number" id="sim-lon" step="0.000001" placeholder="116.407396"></div></div>
+<div class="form-row"><div class="form-group"><label>海拔高度 (m)</label><input type="number" id="sim-alt-msl" step="0.1" placeholder="120.0"></div><div class="form-group"><label>相对高度 (m)</label><input type="number" id="sim-alt-agl" step="0.1" placeholder="100.0"></div></div>
+<div class="form-row"><div class="form-group"><label>水平速度 (m/s)</label><input type="number" id="sim-speed-h" step="0.1" placeholder="5.0"></div><div class="form-group"><label>垂直速度 (m/s)</label><input type="number" id="sim-speed-v" step="0.1" placeholder="0.0"></div></div>
+<div class="form-group"><label>航向 (度)</label><input type="number" id="sim-heading" step="0.1" min="0" max="360" placeholder="180"></div>
+<div class="form-group"><label>运行状态</label><select id="sim-status"><option value="0">未声明</option><option value="1">地面</option><option value="2">起飞</option><option value="3">飞行中</option><option value="4">降落</option></select></div>
+<div class="form-row"><div class="form-group"><label>飞手纬度</label><input type="number" id="sim-op-lat" step="0.000001" placeholder="39.904200"></div><div class="form-group"><label>飞手经度</label><input type="number" id="sim-op-lon" step="0.000001" placeholder="116.407396"></div></div>
+<div class="form-group"><label>飞手 ID</label><input type="text" id="sim-op-id" maxlength="20" placeholder="飞手编号"></div>
+<div class="form-row mt-sm"><button class="btn btn-primary" onclick="saveSimConfig()">💾 保存配置</button><button class="btn btn-outline" onclick="loadSimConfig()">🔄 加载配置</button></div>
+</div></div>
+<div id="about" class="page">
+<div class="card" style="text-align:center"><div style="font-size:3em;margin-bottom:12px">🛸</div><h3>ESP32-C3 RID 管理系统</h3><p style="color:var(--text2);font-size:.9em;margin-top:8px">基于 OpenDroneID 标准<br>支持 GB 42590-2023 / ASTM F3411-22a<br>WiFi AP: rid / 12345678</p></div>
+<div class="card"><h3>📊 系统信息</h3><div class="detail-grid"><div class="kv"><div class="k">芯片</div><div class="v">ESP32-C3</div></div><div class="kv"><div class="k">固件</div><div class="v">v1.0.0</div></div><div class="kv"><div class="k">WiFi SSID</div><div class="v">rid</div></div><div class="kv"><div class="k">在线无人机</div><div class="v" id="about-online">-</div></div><div class="kv"><div class="k">总接收数</div><div class="v" id="about-total">-</div></div><div class="kv"><div class="k">可用内存</div><div class="v" id="about-heap">-</div></div></div></div></div>
+<div class="footer">ESP32-C3 RID Scanner © 2024</div>
+<script>
+var currentTab="dashboard",allUavs=[],refreshTimer=null;
+function switchTab(tab){currentTab=tab;document.querySelectorAll(".page").forEach(function(p){p.classList.remove("active")});document.querySelectorAll("nav a").forEach(function(a){a.classList.remove("active")});var page=document.getElementById(tab);if(page)page.classList.add("active");var link=document.querySelector('nav a[href="#'+tab+'"]');if(link)link.classList.add("active");if(tab==="drones")loadDroneList();if(tab==="dashboard")loadDashboard();if(tab==="about")loadAbout()}
+async function apiCall(path){try{var resp=await fetch("/api/"+path);return await resp.json()}catch(e){return null}}
+async function loadDashboard(){var status=await apiCall("status");if(status){document.getElementById("stat-online").textContent=status.online||0;document.getElementById("stat-total").textContent=status.total||0;document.getElementById("stat-heap").textContent=status.heap_kb||0;document.getElementById("stat-sim").textContent=status.sim_running?"ON":"OFF"}var drones=await apiCall("drones");if(drones&&drones.list){allUavs=drones.list;var html="";drones.list.slice(0,5).forEach(function(u){html+=droneItemHtml(u)});document.getElementById("recent-drones").innerHTML=html||'<div class="empty-state"><div class="icon">📭</div><p>暂无无人机数据</p></div>'}}
+function droneItemHtml(u){var n=u.id||("MAC: "+(u.mac||"?"));var dot=u.online?'<span class="status-dot online"></span>':'<span class="status-dot offline"></span>';var rssi=u.rssi?" RSSI:"+u.rssi+"dBm":"";var alt=u.altitude_agl?" Alt:"+parseFloat(u.altitude_agl).toFixed(1)+"m":"";return '<div class="drone-item" onclick="showDroneDetail(\''+(u.mac||"")+'\')"><div class="icon">🚁</div><div class="info"><div class="name">'+dot+esc(n)+'</div><div class="meta">'+esc(u.model||"")+rssi+alt+'</div></div><div class="arrow">›</div></div>'}
+function esc(s){if(!s)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+async function loadDroneList(){var drones=await apiCall("drones");if(drones&&drones.list)allUavs=drones.list;var html="";if(allUavs.length===0){document.getElementById("drones-empty").style.display="block"}else{document.getElementById("drones-empty").style.display="none";allUavs.forEach(function(u){html+=droneItemHtml(u)})}document.getElementById("all-drones").innerHTML=html;document.getElementById("drone-count").textContent="共 "+allUavs.length+" 架"}
+function showDroneDetail(mac){switchTab("drone-detail");var u=null;for(var i=0;i<allUavs.length;i++){if(allUavs[i].mac===mac){u=allUavs[i];break}}if(!u){document.getElementById("detail-content").innerHTML="<p>未找到无人机信息</p>";return}var b=u.online?'<span class="badge badge-online">在线</span>':'<span class="badge badge-offline">离线</span>';var h='<div class="flex-between mb-sm"><h3>🚁 无人机详情</h3>'+b+'</div><div class="detail-grid">';h+=kv("ID",u.id);h+=kv("型号",u.model);h+=kv("MAC",u.mac);h+=kv("协议",u.protocol_name);h+=kv("RSSI",u.rssi?u.rssi+" dBm":null);h+=kv("纬度",u.latitude);h+=kv("经度",u.longitude);h+=kv("海拔高度",u.altitude_msl?u.altitude_msl+" m":null);h+=kv("相对高度",u.altitude_agl?u.altitude_agl+" m":null);h+=kv("水平速度",u.speed_h?u.speed_h+" m/s":null);h+=kv("垂直速度",u.speed_v?u.speed_v+" m/s":null);h+=kv("航向",u.heading?u.heading+"°":null);h+=kv("状态",u.status_text);h+=kv("飞手ID",u.operator_id);h+=kv("飞手纬度",u.operator_lat);h+=kv("飞手经度",u.operator_lon);h+='</div>';document.getElementById("detail-content").innerHTML=h;var lat=parseFloat(u.latitude)||0;var lon=parseFloat(u.longitude)||0;if(lat!==0&&lon!==0){document.getElementById("nav-drone").href="https://uri.amap.com/marker?position="+lon+","+lat+"&name="+encodeURIComponent(u.id||"无人机");document.getElementById("nav-drone").style.display="flex";document.getElementById("map-hint").textContent="位置: "+lat.toFixed(6)+", "+lon.toFixed(6)}else{document.getElementById("nav-drone").style.display="none";document.getElementById("map-hint").textContent="无有效位置信息"}var olat=parseFloat(u.operator_lat)||0;var olon=parseFloat(u.operator_lon)||0;if(olat!==0&&olon!==0){document.getElementById("nav-operator").href="https://uri.amap.com/marker?position="+olon+","+olat+"&name="+encodeURIComponent(u.operator_id||"飞手");document.getElementById("nav-operator").style.display="flex"}else{document.getElementById("nav-operator").style.display="none"}}
+function kv(k,v){return '<div class="kv"><div class="k">'+esc(k)+'</div><div class="v">'+(v||"N/A")+'</div></div>'}
+async function toggleSimulator(){var on=document.getElementById("sim-toggle").checked;await fetch("/api/sim_toggle",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({running:on})})}
+async function saveSimConfig(){var cfg={uas_id:document.getElementById("sim-uasid").value,drone_name:document.getElementById("sim-name").value,ua_type:parseInt(document.getElementById("sim-type").value),latitude:parseFloat(document.getElementById("sim-lat").value)||0,longitude:parseFloat(document.getElementById("sim-lon").value)||0,altitude_msl:parseFloat(document.getElementById("sim-alt-msl").value)||0,altitude_agl:parseFloat(document.getElementById("sim-alt-agl").value)||0,speed_horizontal:parseFloat(document.getElementById("sim-speed-h").value)||0,speed_vertical:parseFloat(document.getElementById("sim-speed-v").value)||0,heading:parseFloat(document.getElementById("sim-heading").value)||0,status:parseInt(document.getElementById("sim-status").value),operator_lat:parseFloat(document.getElementById("sim-op-lat").value)||0,operator_lon:parseFloat(document.getElementById("sim-op-lon").value)||0,operator_id:document.getElementById("sim-op-id").value};await fetch("/api/sim_config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});alert("配置已保存")}
+async function loadSimConfig(){var resp=await fetch("/api/sim_config");var cfg=await resp.json();if(cfg){document.getElementById("sim-uasid").value=cfg.uas_id||"";document.getElementById("sim-name").value=cfg.drone_name||"";document.getElementById("sim-type").value=cfg.ua_type||0;document.getElementById("sim-lat").value=cfg.latitude||0;document.getElementById("sim-lon").value=cfg.longitude||0;document.getElementById("sim-alt-msl").value=cfg.altitude_msl||0;document.getElementById("sim-alt-agl").value=cfg.altitude_agl||0;document.getElementById("sim-speed-h").value=cfg.speed_horizontal||0;document.getElementById("sim-speed-v").value=cfg.speed_vertical||0;document.getElementById("sim-heading").value=cfg.heading||0;document.getElementById("sim-status").value=cfg.status||0;document.getElementById("sim-op-lat").value=cfg.operator_lat||0;document.getElementById("sim-op-lon").value=cfg.operator_lon||0;document.getElementById("sim-op-id").value=cfg.operator_id||"";document.getElementById("sim-toggle").checked=cfg.running||false}}
+async function loadAbout(){var s=await apiCall("status");if(s){document.getElementById("about-online").textContent=s.online||0;document.getElementById("about-total").textContent=s.total||0;document.getElementById("about-heap").textContent=(s.heap_kb||0)+" KB"}}
+function startRefresh(){if(refreshTimer)clearInterval(refreshTimer);refreshTimer=setInterval(function(){if(currentTab==="dashboard")loadDashboard()},5000)}
+loadDashboard();loadSimConfig();startRefresh();
+</script>
+</body>
+</html>

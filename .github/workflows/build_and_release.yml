@@ -1,0 +1,73 @@
+name: ESP32-C3 Build and Release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        submodules: 'recursive'
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        pip install setuptools wheel
+
+    - name: ESP-IDF Build (ESP32-C3)
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: v5.2.1
+        target: esp32c3
+        path: '.'
+        command: idf.py build
+
+    - name: Merge binaries for flashing
+      run: |
+        pip install esptool
+        python -m esptool --chip esp32c3 merge_bin \
+          -o build/esp32-c3-rid-combined.bin \
+          --flash_mode dio \
+          --flash_freq 80m \
+          --flash_size 4MB \
+          0x0 build/bootloader/bootloader.bin \
+          0x10000 build/esp32_crid.bin \
+          0x8000 build/partition_table/partition-table.bin
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: esp32c3-rid-firmware
+        path: |
+          build/*.bin
+          build/*.elf
+          build/bootloader/*.bin
+          build/partition_table/*.bin
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          build/*.bin
+          build/bootloader/*.bin
+          build/partition_table/*.bin
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

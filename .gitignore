@@ -1,0 +1,23 @@
+.codebuddy/
+archive/
+
+# Build directories
+build/
+managed_components/
+
+# Espressif specific
+sdkconfig
+sdkconfig.old
+sdkconfig.defaults
+
+# IDE
+.vscode/
+.clangd/
+
+# OS
+.DS_Store
+Thumbs.db
+
+tools/.venv/
+__pycache__/
+*.pyc
