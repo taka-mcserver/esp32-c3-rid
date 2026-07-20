@@ -1,4 +1,5 @@
-#include "crid_config.h"
+﻿#include "crid_config.h"
+#include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include "esp_system.h"
@@ -15,7 +16,7 @@ void crid_config_init_default(cn_crid_config_t *config) {
 
     memset(config, 0, sizeof(cn_crid_config_t));
 
-    // --- 从硬件获取 MAC 地址 ---
+    // --- 浠庣‖浠惰幏鍙?MAC 鍦板潃 ---
     esp_err_t mac_ret = esp_efuse_mac_get_default(config->mac_address);
     if (mac_ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to get MAC address, using fallback");
@@ -27,20 +28,19 @@ void crid_config_init_default(cn_crid_config_t *config) {
         config->mac_address[5] = 0x57;
     }
 
-    // 提取 MAC 地址最后 4 位（即后 2 字节）作为后缀
-    // 例如 MAC 24:0A:C4:12:34:56 -> 后缀 "3456"
+    // 鎻愬彇 MAC 鍦板潃鏈€鍚?4 浣嶏紙鍗冲悗 2 瀛楄妭锛変綔涓哄悗缂€
+    // 渚嬪 MAC 24:0A:C4:12:34:56 -> 鍚庣紑 "3456"
     char mac_suffix[5];
     snprintf(mac_suffix, sizeof(mac_suffix), "%02X%02X",
              config->mac_address[4], config->mac_address[5]);
 
-    // --- UAS ID / 无人机唯一标识: 前缀 "CRID-" + MAC 后 4 位 ---
+    // --- UAS ID / 鏃犱汉鏈哄敮涓€鏍囪瘑: 鍓嶇紑 "CRID-" + MAC 鍚?4 浣?---
     snprintf(config->uas_id, CRID_UAS_ID_MAX_LEN + 1, "ESP32-CRID-%s", mac_suffix);
 
     config->id_type = ID_TYPE_SERIAL_NUMBER;
     config->ua_type = UA_TYPE_HELICOPTER;
 
-    // 越秀山坐标
-    config->latitude = 23.14287f;
+    // 瓒婄灞卞潗鏍?    config->latitude = 23.14287f;
     config->longitude = 113.26026f;
     config->altitude_msl = 50.0f;
     config->altitude_agl = 50.0f;
@@ -53,10 +53,9 @@ void crid_config_init_default(cn_crid_config_t *config) {
     config->operator_lon = 113.26f;
     config->operator_alt = 10.0f;
 
-    // 飞手名字: 前缀 "OP-CAAC-" + MAC 后 4 位
-    snprintf(config->operator_id, CRID_UAS_ID_MAX_LEN + 1, "ESP32-OP-%s", mac_suffix);
+    // 椋炴墜鍚嶅瓧: 鍓嶇紑 "OP-CAAC-" + MAC 鍚?4 浣?    snprintf(config->operator_id, CRID_UAS_ID_MAX_LEN + 1, "ESP32-OP-%s", mac_suffix);
 
-    // 无人机名字/型号 (Self-ID 描述): 填写为 ESP32S3
+    // 鏃犱汉鏈哄悕瀛?鍨嬪彿 (Self-ID 鎻忚堪): 濉啓涓?ESP32S3
     strncpy(config->drone_name, "ESP32S3", CRID_UAS_ID_MAX_LEN);
     config->drone_name[CRID_UAS_ID_MAX_LEN] = '\0';
 
@@ -66,19 +65,16 @@ void crid_config_init_default(cn_crid_config_t *config) {
     config->class_eu = 0;
     config->height_type = HEIGHT_REF_OVER_TAKEOFF;
 
-    // SSID 后缀也用 MAC 后 4 位
-    snprintf(config->ssid, CRID_SSID_MAX_LEN + 1, "ESP32-CRID-%s", mac_suffix);
+    // SSID 鍚庣紑涔熺敤 MAC 鍚?4 浣?    snprintf(config->ssid, CRID_SSID_MAX_LEN + 1, "ESP32-CRID-%s", mac_suffix);
 
     config->channel = DEFAULT_WIFI_CHANNEL;
     config->message_counter = 0;
 
-    // 巡游参数
+    // 宸℃父鍙傛暟
     config->base_latitude = config->latitude;
     config->base_longitude = config->longitude;
     config->base_altitude_msl = config->altitude_msl;
-    config->patrol_radius_lat = 0.00005f;  // 约 5.5 米
-    config->patrol_radius_lon = 0.00004f;  // 约 4.4 米
-    config->patrol_speed = 0.2f;
+    config->patrol_radius_lat = 0.00005f;  // 绾?5.5 绫?    config->patrol_radius_lon = 0.00004f;  // 绾?4.4 绫?    config->patrol_speed = 0.2f;
     config->time_counter = 0.0f;
 
     ESP_LOGI(TAG, "China C-RID configuration initialized");
@@ -144,8 +140,7 @@ void crid_config_init_random(cn_crid_config_t *cfg, int index, double center_lat
     cfg->speed_horizontal = 2.0f + (float)(esp_random() % 60) / 10.0f;
     
     // Random MAC (use base MAC with offset)
-    memcpy(cfg->mac_address, cfg->mac_address, 6);
-    cfg->mac_address[5] += index;
+    // MAC address derived from base + index offset
     
     // SSID hidden
     cfg->ssid[0] = '\0';
