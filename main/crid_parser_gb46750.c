@@ -49,14 +49,15 @@ static inline int32_t le32s(const uint8_t *p) {
 static inline bool decode_alt_2byte(const uint8_t *p, float *out) {
     uint16_t raw = le16(p);
 
-    // 澧炲姞瀵?0xFFFF 鐨勬牎楠岋紙鍥芥爣涓?0xFFFF 閫氬父涔熶唬琛ㄦ棤鏁?鏈煡锛?    if (raw == 0 || raw == 0xFFFF) {
+    // Check for 0xFFFF (also means unknown/invalid)
+    if (raw == 0 || raw == 0xFFFF) {
         *out = 0.0f;
         return false;
     }
 
     *out = (raw / 2.0f) - 1000.0f;
 
-    // 浼樺寲鏃ュ織锛氱洿鎺ユ墦鍗板畬鏁寸殑 raw 鍗佸叚杩涘埗锛屼互鍙婃媶瑙ｇ殑瀛楄妭搴忥紝鏂逛究姣斿
+    // Decode: encoded = (actual + 1000) * 2, resolution 0.5m
     //ESP_LOGI(TAG, "Height: raw=0x%04X (bytes: %02X %02X) => alt=%.2f m",              raw, p[0], p[1], *out);
 
     return true;
@@ -154,10 +155,10 @@ static int decode_gb46750_payload(gb46750_data_t *gb,
                     break;
 
                 /* 鏍囪瘑瀛楄妭 2 */
-                case 0x0F:
+                /* ID byte 2 */
                     if (offset + 8 > content_len) return items_parsed;
                     {
-                        // 浣跨敤鐙珛鐨勫眬閮ㄥ彉閲?                        float uav_lon = le32s(&content[offset]) / 1e7;
+                        float uav_lon = le32s(&content[offset]) / 1e7;
                         float uav_lat = le32s(&content[offset + 4]) / 1e7;
                         if (IS_VALID_LAT(uav_lat) && IS_VALID_LON(uav_lon)) {
                             gb->uav_longitude = uav_lon;
