@@ -7,7 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "sys/time.h"
-
+#include <inttypes.h>
 static const char *TAG = "CN_C-RID_MSG";
 
 // --- 辅助函数：写入 int32_t 为小端序 ---
@@ -282,7 +282,7 @@ bool crid_build_beacon_frame(cn_crid_config_t *config,
     // + Rates IE: 2+8 + DS IE: 3 + Vendor IE: 1+1+3+1+1+3+25*5 = ~216
     #define BEACON_FRAME_ESTIMATED_LEN 280
     if (max_len < BEACON_FRAME_ESTIMATED_LEN) {
-        ESP_LOGE(TAG, "Frame buffer too small: %u < %u", max_len, BEACON_FRAME_ESTIMATED_LEN);
+        ESP_LOGE(TAG, "Frame buffer too small: %" PRIu16 " < %d", max_len, BEACON_FRAME_ESTIMATED_LEN);
         return false;
     }
 
@@ -408,7 +408,7 @@ bool crid_build_beacon_frame(cn_crid_config_t *config,
 
     *out_len = pos;
 
-    ESP_LOGI(TAG, "Beacon frame built: %u bytes, counter=%u, pos=(%.6f,%.6f)",
+    ESP_LOGI(TAG, "Beacon frame built: %" PRIu16 " bytes, counter=%" PRIu32 ", pos=(%.6f,%.6f)",
              *out_len, msg_counter, config->latitude, config->longitude);
     return true;
 }
