@@ -114,14 +114,14 @@ void crid_config_update_position(cn_crid_config_t *config,
 }
 
 #include "esp_random.h"
-
+#include <math.h>
 // Initialize a drone with random position within ~1km of center
 void crid_config_init_random(cn_crid_config_t *cfg, int index, double center_lat, double center_lon) {
     crid_config_init_default(cfg);
     
     // Unique ID per drone
     snprintf(cfg->uas_id, CRID_UAS_ID_MAX_LEN, "UAV%03d", index + 1);
-    snprintf(cfg->drone_name, CRID_UAS_ID_MAX_LEN, "SIM-Drone-%02d", index + 1);
+    snprintf(cfg->drone_name, CRID_UAS_ID_MAX_LEN, "SIM-Drone-%02d", (index + 1) % 100);
     
     // Random offset within 1km (~0.009 degrees lat, ~0.011 degrees lon)
     double lat_offset = ((double)(esp_random() % 2000) - 1000.0) / 111000.0;
@@ -143,8 +143,7 @@ void crid_config_init_random(cn_crid_config_t *cfg, int index, double center_lat
     // Random speed 2-8 m/s
     cfg->speed_horizontal = 2.0f + (float)(esp_random() % 60) / 10.0f;
     
-    // Random MAC (use base MAC with offset)
-    memcpy(cfg->mac_address, cfg->mac_address, 6);
+    // Base MAC is already copied by crid_config_init_default, just apply offset
     cfg->mac_address[5] += index;
     
     // SSID hidden
