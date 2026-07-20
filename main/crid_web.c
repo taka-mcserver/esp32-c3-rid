@@ -423,6 +423,16 @@ static esp_err_t api_clear_cache_post(httpd_req_t *req) {
 }
 
 /* ================================================================
+ * Captive Portal 404 Handler (Redirects unknown URIs to /)
+ * ================================================================ */
+static esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err) {
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/* ================================================================
  * Redirect all non-API requests to index.html (captive portal)
  * ================================================================ */
 static esp_err_t root_handler(httpd_req_t *req) {
@@ -523,6 +533,7 @@ void crid_web_start(void) {
     config.send_wait_timeout = 5;
     
     if (httpd_start(&g_server, &config) == ESP_OK) {
+        httpd_register_err_handler(g_server, HTTPD_404_NOT_FOUND, http_404_error_handler);
         for (int i = 0; i < sizeof(uri_handlers) / sizeof(uri_handlers[0]); i++) {
             httpd_register_uri_handler(g_server, &uri_handlers[i]);
         }
