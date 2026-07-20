@@ -53,9 +53,8 @@ static const char *TAG = "APP";
 #define AP_CHANNEL  6
 
 /* ================================================================
- * Simulator State
- * ================================================================ */
-static sim_control_t g_sim;
+// Simulator State
+#define g_sim (*crid_web_get_sim())
 static uint8_t g_beacon_frame[1024];
 static uint16_t g_beacon_frame_len = 0;
 

@@ -24,11 +24,10 @@ static const char *TAG = "CRID_WEB";
 
 // Simulator state (shared with app_main)
 static sim_control_t g_sim;
-static bool g_sim_running = false;
 
 sim_control_t *crid_web_get_sim(void) { return &g_sim; }
-bool crid_web_is_sim_running(void) { return g_sim_running; }
-void crid_web_set_sim_running(bool running) { g_sim_running = running; }
+bool crid_web_is_sim_running(void) { return g_sim.running; }
+void crid_web_set_sim_running(bool running) { g_sim.running = running; }
 
 void crid_web_set_trajectory(const double *lats, const double *lons, int count, float speed) {
     if (count <= 0 || count > MAX_TRAJECTORY_POINTS) return;
@@ -193,7 +192,7 @@ static esp_err_t api_status_get(httpd_req_t *req) {
     char buf[256];
     snprintf(buf, sizeof(buf),
         "{\"online\":%d,\"total\":%d,\"heap_kb\":%lu,\"sim_running\":%s}",
-        online, total, heap / 1024, g_sim_running ? "true" : "false");
+        online, total, heap / 1024, g_sim.running ? "true" : "false");
     
     httpd_resp_send(req, buf, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
@@ -320,8 +319,8 @@ static esp_err_t api_sim_toggle_post(httpd_req_t *req) {
         if (json) {
             cJSON *running = cJSON_GetObjectItem(json, "running");
             if (running && cJSON_IsBool(running)) {
-                g_sim_running = cJSON_IsTrue(running);
-                ESP_LOGI(TAG, "Simulator %s", g_sim_running ? "ON" : "OFF");
+                g_sim.running = cJSON_IsTrue(running);
+                ESP_LOGI(TAG, "Simulator %s", g_sim.running ? "ON" : "OFF");
             }
             cJSON_Delete(json);
         }
@@ -341,7 +340,7 @@ static esp_err_t api_sim_config_get(httpd_req_t *req) {
     cJSON_AddNumberToObject(root, "count", g_sim.count);
     cJSON_AddNumberToObject(root, "center_lat", g_sim.center_lat);
     cJSON_AddNumberToObject(root, "center_lon", g_sim.center_lon);
-    cJSON_AddBoolToObject(root, "running", g_sim_running);
+    cJSON_AddBoolToObject(root, "running", g_sim.running);
     cJSON_AddBoolToObject(root, "trajectory_active", g_sim.trajectory.active);
     cJSON_AddNumberToObject(root, "trajectory_points", g_sim.trajectory.total_points);
     cJSON_AddNumberToObject(root, "trajectory_index", g_sim.trajectory.current_index);
