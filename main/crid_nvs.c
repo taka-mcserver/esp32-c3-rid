@@ -4,6 +4,7 @@
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "esp_log.h"
+#include <inttypes.h>
 
 static const char *TAG = "CRID_NVS";
 static const char *NVS_NS = "crid_cache";
@@ -15,7 +16,7 @@ void crid_nvs_init(void) {
     if (err != ESP_OK) { ESP_LOGE(TAG, "NVS open fail: %d", err); return; }
     nvs_get_i32(g_nvs, "total_count", &g_count);
     if (g_count < 0) g_count = 0;
-    ESP_LOGI(TAG, "NVS init, %d records", g_count);
+    ESP_LOGI(TAG, "NVS init, %" PRId32 " records", g_count);
 }
 
 static void mac_key(const uint8_t *mac, char *k, size_t sz) {
