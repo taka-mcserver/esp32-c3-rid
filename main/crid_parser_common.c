@@ -82,7 +82,7 @@ rid_protocol_t crid_parser_decode(uav_track_t *uav, const uint8_t *data, uint8_t
 void crid_parser_extract_layered(uav_track_t *uav) {
     if (!uav) return;
 
-    /* --- GB 46750-2025 鏄犲皠 --- */
+    /* --- GB 46750-2025 映射 --- */
     if (uav->protocol == RID_PROTOCOL_GB46750 && uav->gb46750.valid) {
         gb46750_data_t *gb = &uav->gb46750;
 
@@ -96,7 +96,7 @@ void crid_parser_extract_layered(uav_track_t *uav) {
             const char *src = gb->unique_id;
             int i = 0;
             while (*src && i < (int)sizeof(uav->basic_id.uas_id) - 1) {
-                if (*src >= 32 && *src <= 126) { // 浠呬繚鐣欏彲鎵撳嵃 ASCII
+                if (*src >= 32 && *src <= 126) { // 仅保留可打印 ASCII
                     *dst++ = *src;
                     i++;
                 }

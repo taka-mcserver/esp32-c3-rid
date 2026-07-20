@@ -321,7 +321,7 @@ int odid_wifi_build_nan_sync_beacon_frame(char *mac, uint8_t *buf, size_t buf_si
     memset(master_indication_attr, 0, sizeof(*master_indication_attr));
     master_indication_attr->header.attribute_id = 0x00;
     master_indication_attr->header.length = cpu_to_le16(0x0002);
-    /* Information that is used to indicate a NAN Device鈥檚 preference to serve
+    /* Information that is used to indicate a NAN Device’s preference to serve
      * as the role of Master, with a larger value indicating a higher
      * preference. Values 1 and 255 are used for testing purposes only.
      */

@@ -14,15 +14,15 @@
 // static const char *TAG = "unused";
 
 /* ================================================================
- * 甯搁噺涓庡畯瀹氫箟
+ * 常量与宏定义
  * ================================================================ */
 #define GB42590_MAGIC           0xF1
-#define GB42590_HEADER_LEN      3   /* Magic(1)+Size(1)+Count(1) - payload 涓嶅啀鍖呭惈 Counter */
+#define GB42590_HEADER_LEN      3   /* Magic(1)+Size(1)+Count(1) - payload 不再包含 Counter */
 #define ASTM_MSG_SIZE           25
 #define ASTM_PACK_MAX_MSGS      ODID_PACK_MAX_MESSAGES
 
 /* ================================================================
- * 鍐呴儴杈呭姪鍑芥暟
+ * 内部辅助函数
  * ================================================================ */
 static inline uint16_t le16(const uint8_t *p) {
     return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
@@ -34,12 +34,12 @@ static inline int32_t le32s(const uint8_t *p) {
 }
 
 /* ================================================================
- * GB 42590-2023 Packed 鏍煎紡瑙ｆ瀽
+ * GB 42590-2023 Packed 格式解析
  * ================================================================ */
 static bool decode_gb_format(uav_track_t *uav, const uint8_t *data, uint8_t len) {
     if (len < GB42590_HEADER_LEN) return false;
 
-    /* payload 缁撴瀯: [Magic(0xF1)][Size(1)][Count(1)][Messages...] */
+    /* payload 结构: [Magic(0xF1)][Size(1)][Count(1)][Messages...] */
     uint8_t gb_single_msg_size = data[1];
     uint8_t gb_msg_count       = data[2];
     if (gb_single_msg_size != ASTM_MSG_SIZE || gb_msg_count < 1 || gb_msg_count > ASTM_PACK_MAX_MSGS) {
@@ -77,7 +77,7 @@ static bool decode_gb_format(uav_track_t *uav, const uint8_t *data, uint8_t len)
 bool crid_parser_decode_gb42590(uav_track_t *uav, const uint8_t *data, uint8_t len) {
     if (!data || len < 1) return false;
 
-    /* 绛栫暐 3: GB 42590-2023 */
+    /* 策略 3: GB 42590-2023 */
     if (len >= GB42590_HEADER_LEN && data[0] == GB42590_MAGIC) {
         if (decode_gb_format(uav, data, len)) {
             return true;

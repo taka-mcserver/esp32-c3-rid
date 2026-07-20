@@ -135,7 +135,7 @@ typedef struct {
     float    speed_horizontal;   // 水平速度 (m/s)
     float    speed_vertical;     // 垂直速度 (m/s)
     float    direction;          // 航向 (0°~360°)
-    uint8_t  status;             // UAV 状态 (ODID_status_t)
+    uint8_t  status;             // UAV ״̬ (ODID_status_t)
     uint8_t  h_accuracy;         // 水平精度 (ODID_Horizontal_accuracy_t)
     uint8_t  v_accuracy;         // 垂直精度 (ODID_Vertical_accuracy_t)
     uint8_t  baro_accuracy;      // 气压精度 (ODID_Vertical_accuracy_t)

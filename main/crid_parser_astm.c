@@ -13,13 +13,13 @@
 // static const char *TAG = "unused";
 
 #define ASTM_MAGIC              0xF2
-#define ASTM_HEADER_LEN         3   /* Magic(1)+Size(1)+Count(1) - payload 涓嶅啀鍖呭惈 Counter */
+#define ASTM_HEADER_LEN         3   /* Magic(1)+Size(1)+Count(1) - payload 不再包含 Counter */
 #define ASTM_MSG_SIZE           25
 #define ASTM_PACK_MAX_MSGS      ODID_PACK_MAX_MESSAGES
 
 
 /* ================================================================
- * 鍐呴儴杈呭姪鍑芥暟
+ * 内部辅助函数
  * ================================================================ */
 static inline uint16_t le16(const uint8_t *p) {
     return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
@@ -31,7 +31,7 @@ static inline int32_t le32s(const uint8_t *p) {
 }
 
 /* ================================================================
- * ASTM F3411 Packed 鏍煎紡瑙ｆ瀽
+ * ASTM F3411 Packed 格式解析
  * ================================================================ */
 
 /**
@@ -40,8 +40,8 @@ static inline int32_t le32s(const uint8_t *p) {
 bool crid_parser_decode_astm(uav_track_t *uav, const uint8_t *data, uint8_t len) {
     if (!data || len < 1) return false;
 
-    /* 绛栫暐 2: ASTM F3411 Packed 鏍煎紡 */
-    /* payload 缁撴瀯: [Magic(0xF2)][Size(1)][Count(1)][Messages...] */
+    /* 策略 2: ASTM F3411 Packed 格式 */
+    /* payload 结构: [Magic(0xF2)][Size(1)][Count(1)][Messages...] */
     if (len >= ASTM_HEADER_LEN && data[0] == ASTM_MAGIC) {
         uint8_t msg_count = data[2];
         size_t pack_size  = sizeof(ODID_MessagePack_encoded) -
