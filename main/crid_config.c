@@ -1,10 +1,10 @@
-﻿#include "crid_config.h"
-#include <math.h>
+#include "crid_config.h"
 #include <string.h>
 #include <stdio.h>
 #include "esp_system.h"
 #include "esp_mac.h"
 #include "esp_log.h"
+#include <math.h>
 
 static const char *TAG = "CN_C-RID_CFG";
 
@@ -40,7 +40,8 @@ void crid_config_init_default(cn_crid_config_t *config) {
     config->id_type = ID_TYPE_SERIAL_NUMBER;
     config->ua_type = UA_TYPE_HELICOPTER;
 
-    // 瓒婄灞卞潗鏍?    config->latitude = 23.14287f;
+    // 瓒婄灞卞潗鏍?
+    config->latitude = 23.14287f;
     config->longitude = 113.26026f;
     config->altitude_msl = 50.0f;
     config->altitude_agl = 50.0f;
@@ -53,7 +54,8 @@ void crid_config_init_default(cn_crid_config_t *config) {
     config->operator_lon = 113.26f;
     config->operator_alt = 10.0f;
 
-    // 椋炴墜鍚嶅瓧: 鍓嶇紑 "OP-CAAC-" + MAC 鍚?4 浣?    snprintf(config->operator_id, CRID_UAS_ID_MAX_LEN + 1, "ESP32-OP-%s", mac_suffix);
+    // 椋炴墜鍚嶅瓧: 鍓嶇紑 "OP-CAAC-" + MAC 鍚?4 浣?
+    snprintf(config->operator_id, CRID_UAS_ID_MAX_LEN + 1, "ESP32-OP-%s", mac_suffix);
 
     // 鏃犱汉鏈哄悕瀛?鍨嬪彿 (Self-ID 鎻忚堪): 濉啓涓?ESP32S3
     strncpy(config->drone_name, "ESP32S3", CRID_UAS_ID_MAX_LEN);
@@ -65,7 +67,8 @@ void crid_config_init_default(cn_crid_config_t *config) {
     config->class_eu = 0;
     config->height_type = HEIGHT_REF_OVER_TAKEOFF;
 
-    // SSID 鍚庣紑涔熺敤 MAC 鍚?4 浣?    snprintf(config->ssid, CRID_SSID_MAX_LEN + 1, "ESP32-CRID-%s", mac_suffix);
+    // SSID 鍚庣紑涔熺敤 MAC 鍚?4 浣?
+    snprintf(config->ssid, CRID_SSID_MAX_LEN + 1, "ESP32-CRID-%s", mac_suffix);
 
     config->channel = DEFAULT_WIFI_CHANNEL;
     config->message_counter = 0;
@@ -74,7 +77,9 @@ void crid_config_init_default(cn_crid_config_t *config) {
     config->base_latitude = config->latitude;
     config->base_longitude = config->longitude;
     config->base_altitude_msl = config->altitude_msl;
-    config->patrol_radius_lat = 0.00005f;  // 绾?5.5 绫?    config->patrol_radius_lon = 0.00004f;  // 绾?4.4 绫?    config->patrol_speed = 0.2f;
+    config->patrol_radius_lat = 0.00005f;  // 绾?5.5 绫?
+    config->patrol_radius_lon = 0.00004f;  // 绾?4.4 绫?
+    config->patrol_speed = 0.2f;
     config->time_counter = 0.0f;
 
     ESP_LOGI(TAG, "China C-RID configuration initialized");
@@ -140,7 +145,8 @@ void crid_config_init_random(cn_crid_config_t *cfg, int index, double center_lat
     cfg->speed_horizontal = 2.0f + (float)(esp_random() % 60) / 10.0f;
     
     // Random MAC (use base MAC with offset)
-    // MAC address derived from base + index offset
+    // MAC address: base + index offset
+    cfg->mac_address[5] += index;
     
     // SSID hidden
     cfg->ssid[0] = '\0';
