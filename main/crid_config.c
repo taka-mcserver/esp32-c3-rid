@@ -112,3 +112,49 @@ void crid_config_update_position(cn_crid_config_t *config,
              config->latitude, config->longitude,
              config->altitude_msl, config->heading);
 }
+
+#include "esp_random.h"
+
+// Initialize a drone with random position within ~1km of center
+void crid_config_init_random(cn_crid_config_t *cfg, int index, double center_lat, double center_lon) {
+    crid_config_init_default(cfg);
+    
+    // Unique ID per drone
+    snprintf(cfg->uas_id, CRID_UAS_ID_MAX_LEN, "UAV%03d", index + 1);
+    snprintf(cfg->drone_name, CRID_UAS_ID_MAX_LEN, "SIM-Drone-%02d", index + 1);
+    
+    // Random offset within 1km (~0.009 degrees lat, ~0.011 degrees lon)
+    double lat_offset = ((double)(esp_random() % 2000) - 1000.0) / 111000.0;
+    double lon_offset = ((double)(esp_random() % 2000) - 1000.0) / (111000.0 * cos(center_lat * 3.14159 / 180.0));
+    
+    cfg->base_latitude = center_lat + lat_offset;
+    cfg->base_longitude = center_lon + lon_offset;
+    cfg->latitude = cfg->base_latitude;
+    cfg->longitude = cfg->base_longitude;
+    
+    // Random altitude 50-150m
+    cfg->base_altitude_msl = 50.0f + (float)(esp_random() % 100);
+    cfg->altitude_msl = cfg->base_altitude_msl;
+    cfg->altitude_agl = cfg->base_altitude_msl - 5.0f;
+    
+    // Random heading
+    cfg->heading = (float)(esp_random() % 360);
+    
+    // Random speed 2-8 m/s
+    cfg->speed_horizontal = 2.0f + (float)(esp_random() % 60) / 10.0f;
+    
+    // Random MAC (use base MAC with offset)
+    memcpy(cfg->mac_address, cfg->mac_address, 6);
+    cfg->mac_address[5] += index;
+    
+    // SSID hidden
+    cfg->ssid[0] = '\0';
+    
+    // Patrol params for random walk
+    cfg->patrol_radius_lat = 0.001f + (float)(esp_random() % 50) / 10000.0f;
+    cfg->patrol_radius_lon = 0.001f + (float)(esp_random() % 50) / 10000.0f;
+    cfg->patrol_speed = 0.05f + (float)(esp_random() % 20) / 100.0f;
+    
+    cfg->status = 3; // Airborne
+    cfg->ua_type = 2; // Rotorcraft
+}

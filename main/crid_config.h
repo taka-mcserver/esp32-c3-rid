@@ -140,4 +140,36 @@ void crid_config_update_position(cn_crid_config_t *config,
 }
 #endif
 
+
+// --- Multi-drone simulation ---
+#define MAX_SIM_DRONES 20
+#define MAX_TRAJECTORY_POINTS 500
+
+// KMZ trajectory data
+typedef struct {
+    bool active;
+    double *latitudes;
+    double *longitudes;
+    int total_points;
+    int current_index;
+    float speed;      // m/s between points
+    double base_lat;
+    double base_lon;
+} sim_trajectory_t;
+
+// Multi-drone control
+typedef struct {
+    cn_crid_config_t drones[MAX_SIM_DRONES];
+    uint8_t count;
+    double center_lat;
+    double center_lon;
+    bool running;
+    sim_trajectory_t trajectory;
+} sim_control_t;
+
+
+// Multi-drone helpers
+void crid_config_init_random(cn_crid_config_t *cfg, int index, double center_lat, double center_lon);
+void crid_patrol_random_step(cn_crid_config_t *cfg);
+
 #endif // CRID_CONFIG_H

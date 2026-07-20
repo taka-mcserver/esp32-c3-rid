@@ -17,7 +17,6 @@ idf_component_register(
         crid_wifi.c
         crid_patrol.c
     INCLUDE_DIRS "."
-    EMBED_TXTFILES web/index.html
     PRIV_REQUIRES opendroneid
     REQUIRES
         nvs_flash

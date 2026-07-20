@@ -38,7 +38,10 @@
 #include "crid_config.h"
 #include "crid_messages.h"
 #include "crid_patrol.h"
+#include "crid_config.h"
 #include "crid_wifi.h"
+#include <math.h>
+#include "esp_random.h"
 
 static const char *TAG = "APP";
 
@@ -52,7 +55,7 @@ static const char *TAG = "APP";
 /* ================================================================
  * Simulator State
  * ================================================================ */
-static cn_crid_config_t g_sim_config;
+static sim_control_t g_sim;
 static uint8_t g_beacon_frame[1024];
 static uint16_t g_beacon_frame_len = 0;
 
@@ -135,7 +138,6 @@ static void sniffer_task(void *pv) {
 
 static void simulator_task(void *pv) {
     crid_wifi_init(AP_CHANNEL);
-
     TickType_t lastBeacon = xTaskGetTickCount();
     TickType_t lastPatrol = xTaskGetTickCount();
     const TickType_t bInt = pdMS_TO_TICKS(1000);
@@ -143,24 +145,79 @@ static void simulator_task(void *pv) {
 
     while (1) {
         vTaskDelayUntil(&lastBeacon, bInt);
-        if (!crid_web_is_sim_running()) continue;
+        if (!g_sim.running) continue;
 
         TickType_t now = xTaskGetTickCount();
-        if ((now - lastPatrol) >= pInt) {
-            crid_patrol_step(crid_web_get_sim_config());
-            lastPatrol = now;
+        
+        // Check if trajectory is active
+        if (g_sim.trajectory.active && g_sim.trajectory.current_index < g_sim.trajectory.total_points) {
+            // Follow trajectory - move all drones to follow points with offsets
+            double tlat = g_sim.trajectory.latitudes[g_sim.trajectory.current_index];
+            double tlon = g_sim.trajectory.longitudes[g_sim.trajectory.current_index];
+            
+            for (int i = 0; i < g_sim.count; i++) {
+                double off_lat = (i == 0) ? 0 : ((double)(esp_random() % 200) - 100.0) / 111000.0;
+                double off_lon = (i == 0) ? 0 : ((double)(esp_random() % 200) - 100.0) / (111000.0 * cos(tlat * 3.14159 / 180.0));
+                
+                cn_crid_config_t *cfg = &g_sim.drones[i];
+                cfg->latitude = tlat + off_lat;
+                cfg->longitude = tlon + off_lon;
+                cfg->altitude_msl = 120.0f + (float)(i * 10);
+                cfg->altitude_agl = cfg->altitude_msl - 5.0f;
+                cfg->heading = (i == 0 && g_sim.trajectory.current_index + 1 < g_sim.trajectory.total_points)
+                    ? atan2(g_sim.trajectory.longitudes[g_sim.trajectory.current_index+1] - tlon,
+                            g_sim.trajectory.latitudes[g_sim.trajectory.current_index+1] - tlat) * 180.0 / 3.14159
+                    : cfg->heading;
+                cfg->status = 3;
+                cfg->message_counter++;
+                
+                if (crid_build_beacon_frame(cfg, g_beacon_frame, sizeof(g_beacon_frame), &g_beacon_frame_len)) {
+                    crid_wifi_send_raw_frame(g_beacon_frame, g_beacon_frame_len);
+                }
+                vTaskDelay(pdMS_TO_TICKS(g_sim.trajectory.speed > 0 ? (int)(1000.0 / g_sim.trajectory.speed) : 100));
+            }
+            
+            g_sim.trajectory.current_index++;
+            
+            // Stop when trajectory ends
+            if (g_sim.trajectory.current_index >= g_sim.trajectory.total_points) {
+                g_sim.trajectory.active = false;
+                g_sim.running = false;
+                ESP_LOGI(TAG, "Trajectory complete, simulation stopped");
+            }
+            
+            // Serial output
+            char dbg[256];
+            snprintf(dbg, sizeof(dbg), "{\"evt\":\"traj\",\"pt\":%d/%d,\"lat\":%.6f,\"lon\":%.6f}\n",
+                g_sim.trajectory.current_index, g_sim.trajectory.total_points, tlat, tlon);
+            crid_serial_write(dbg, strlen(dbg));
+            
+        } else {
+            // Normal random walk mode
+            if ((now - lastPatrol) >= pInt) {
+                for (int i = 0; i < g_sim.count; i++) {
+                    crid_patrol_random_step(&g_sim.drones[i]);
+                }
+                lastPatrol = now;
+            }
+            
+            for (int i = 0; i < g_sim.count; i++) {
+                cn_crid_config_t *cfg = &g_sim.drones[i];
+                if (crid_build_beacon_frame(cfg, g_beacon_frame, sizeof(g_beacon_frame), &g_beacon_frame_len)) {
+                    crid_wifi_send_raw_frame(g_beacon_frame, g_beacon_frame_len);
+                }
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
+            
+            // Serial debug every 5s
+            static int dbg_count = 0;
+            if (++dbg_count % 5 == 0) {
+                char dbg[256];
+                snprintf(dbg, sizeof(dbg), "{\"evt\":\"sim\",\"drones\":%d,\"center\":[%.6f,%.6f]}\n",
+                    g_sim.count, g_sim.center_lat, g_sim.center_lon);
+                crid_serial_write(dbg, strlen(dbg));
+            }
         }
-
-        cn_crid_config_t *cfg = crid_web_get_sim_config();
-        if (crid_build_beacon_frame(cfg, g_beacon_frame, sizeof(g_beacon_frame), &g_beacon_frame_len)) {
-            crid_wifi_send_raw_frame(g_beacon_frame, g_beacon_frame_len);
-        }
-
-        // Serial debug
-        char dbg[256];
-        snprintf(dbg, sizeof(dbg), "{\"evt\":\"sim\",\"id\":\"%s\",\"lat\":%.6f,\"lon\":%.6f,\"alt\":%.1f}\n",
-            cfg->uas_id, cfg->latitude, cfg->longitude, cfg->altitude_msl);
-        crid_serial_write(dbg, strlen(dbg));
     }
 }
 
@@ -215,8 +272,12 @@ void app_main(void) {
     crid_web_init();
 
     // Init simulator config
-    crid_config_init_default(crid_web_get_sim_config());
-    crid_nvs_load_sim_config(crid_web_get_sim_config(), sizeof(cn_crid_config_t));
+    memset(&g_sim, 0, sizeof(g_sim));
+    g_sim.count = 1;
+    g_sim.center_lat = 39.9042;
+    g_sim.center_lon = 116.4074;
+    crid_nvs_load_sim_config(&g_sim, sizeof(g_sim));
+    if (g_sim.count == 0) g_sim.count = 1;
 
     // Create tasks
     xTaskCreate(sniffer_task, "sniffer", 4096, NULL, 5, NULL);

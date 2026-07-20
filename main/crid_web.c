@@ -1,3 +1,4 @@
+﻿#include "index_html.h"
 #include "crid_web.h"
 #include "crid_rx_types.h"
 #include "crid_tracker.h"
@@ -22,13 +23,32 @@
 static const char *TAG = "CRID_WEB";
 
 // Simulator state (shared with app_main)
-static cn_crid_config_t g_sim_config;
+static sim_control_t g_sim;
 static bool g_sim_running = false;
-static SemaphoreHandle_t g_sim_mutex = NULL;
 
-cn_crid_config_t *crid_web_get_sim_config(void) { return &g_sim_config; }
+sim_control_t *crid_web_get_sim(void) { return &g_sim; }
 bool crid_web_is_sim_running(void) { return g_sim_running; }
 void crid_web_set_sim_running(bool running) { g_sim_running = running; }
+
+void crid_web_set_trajectory(const double *lats, const double *lons, int count, float speed) {
+    if (count <= 0 || count > MAX_TRAJECTORY_POINTS) return;
+    if (g_sim.trajectory.latitudes) free(g_sim.trajectory.latitudes);
+    if (g_sim.trajectory.longitudes) free(g_sim.trajectory.longitudes);
+    
+    g_sim.trajectory.latitudes = malloc(count * sizeof(double));
+    g_sim.trajectory.longitudes = malloc(count * sizeof(double));
+    if (!g_sim.trajectory.latitudes || !g_sim.trajectory.longitudes) return;
+    
+    memcpy(g_sim.trajectory.latitudes, lats, count * sizeof(double));
+    memcpy(g_sim.trajectory.longitudes, lons, count * sizeof(double));
+    g_sim.trajectory.total_points = count;
+    g_sim.trajectory.current_index = 0;
+    g_sim.trajectory.speed = speed > 0 ? speed : 1.0f;
+    g_sim.trajectory.active = true;
+    g_sim.running = true;
+    
+    ESP_LOGI(TAG, "Trajectory set: %d points, speed=%.1f", count, speed);
+}
 
 /* ================================================================
  * Captive Portal DNS Server
@@ -107,9 +127,7 @@ static void dns_server_task(void *pvParameters) {
 /* ================================================================
  * Embedded Web Page
  * ================================================================ */
-// Embedded HTML from EMBED_TXTFILES
-extern const char web_index_html_start[] asm("_binary_web_index_html_start");
-extern const char web_index_html_end[]   asm("_binary_web_index_html_end");
+
 ;
 
 /* ================================================================
@@ -141,12 +159,12 @@ static const char *protocol_name(uint8_t proto) {
 // Get status text
 static const char *status_text(uint8_t status) {
     switch (status) {
-        case 0: return "未声明";
-        case 1: return "地面";
-        case 2: return "起飞";
-        case 3: return "飞行中";
-        case 4: return "降落";
-        default: return "未知";
+        case 0: return "鏈０鏄?;
+        case 1: return "鍦伴潰";
+        case 2: return "璧烽";
+        case 3: return "椋炶涓?;
+        case 4: return "闄嶈惤";
+        default: return "鏈煡";
     }
 }
 
@@ -213,7 +231,7 @@ static esp_err_t api_drones_get(httpd_req_t *req) {
                 cJSON_AddNumberToObject(item, "latitude", table[i].location.latitude);
                 cJSON_AddNumberToObject(item, "longitude", table[i].location.longitude);
                 cJSON_AddNumberToObject(item, "altitude_msl", table[i].location.altitude_geo);
-                cJSON_AddNumberToObject(item, "altitude_geo", table[i].location.altitude_geo);
+                cJSON_AddNumberToObject(item, "altitude_agl", table[i].location.height);
                 cJSON_AddNumberToObject(item, "speed_h", table[i].location.speed_horizontal);
                 cJSON_AddNumberToObject(item, "speed_v", table[i].location.speed_vertical);
                 cJSON_AddNumberToObject(item, "heading", table[i].location.direction);
@@ -260,7 +278,7 @@ static esp_err_t api_drones_get(httpd_req_t *req) {
             cJSON_AddNumberToObject(item, "latitude", uav->location.latitude);
             cJSON_AddNumberToObject(item, "longitude", uav->location.longitude);
             cJSON_AddNumberToObject(item, "altitude_msl", uav->location.altitude_geo);
-            cJSON_AddNumberToObject(item, "altitude_geo", uav->location.altitude_geo);
+            cJSON_AddNumberToObject(item, "altitude_agl", uav->location.height);
             cJSON_AddNumberToObject(item, "speed_h", uav->location.speed_horizontal);
             cJSON_AddNumberToObject(item, "speed_v", uav->location.speed_vertical);
             cJSON_AddNumberToObject(item, "heading", uav->location.direction);
@@ -319,29 +337,33 @@ static esp_err_t api_sim_toggle_post(httpd_req_t *req) {
 static esp_err_t api_sim_config_get(httpd_req_t *req) {
     add_cors_headers(req);
     httpd_resp_set_type(req, "application/json");
-
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "uas_id", g_sim_config.uas_id);
-    cJSON_AddStringToObject(root, "drone_name", g_sim_config.drone_name);
-    cJSON_AddNumberToObject(root, "ua_type", g_sim_config.ua_type);
-    cJSON_AddNumberToObject(root, "latitude", g_sim_config.latitude);
-    cJSON_AddNumberToObject(root, "longitude", g_sim_config.longitude);
-    cJSON_AddNumberToObject(root, "altitude_msl", g_sim_config.altitude_msl);
-    cJSON_AddNumberToObject(root, "altitude_msl", g_sim_config.altitude_msl);
-    cJSON_AddNumberToObject(root, "speed_horizontal", g_sim_config.speed_horizontal);
-    cJSON_AddNumberToObject(root, "speed_vertical", g_sim_config.speed_vertical);
-    cJSON_AddNumberToObject(root, "heading", g_sim_config.heading);
-    cJSON_AddNumberToObject(root, "status", g_sim_config.status);
-    cJSON_AddNumberToObject(root, "operator_lat", g_sim_config.operator_lat);
-    cJSON_AddNumberToObject(root, "operator_lon", g_sim_config.operator_lon);
-    cJSON_AddStringToObject(root, "operator_id", g_sim_config.operator_id);
+    cJSON_AddNumberToObject(root, "count", g_sim.count);
+    cJSON_AddNumberToObject(root, "center_lat", g_sim.center_lat);
+    cJSON_AddNumberToObject(root, "center_lon", g_sim.center_lon);
     cJSON_AddBoolToObject(root, "running", g_sim_running);
-
-    char *json_str = cJSON_PrintUnformatted(root);
-    httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);
-    free(json_str);
-    cJSON_Delete(root);
+    cJSON_AddBoolToObject(root, "trajectory_active", g_sim.trajectory.active);
+    cJSON_AddNumberToObject(root, "trajectory_points", g_sim.trajectory.total_points);
+    cJSON_AddNumberToObject(root, "trajectory_index", g_sim.trajectory.current_index);
     
+    // First drone details
+    cJSON_AddStringToObject(root, "uas_id", g_sim.drones[0].uas_id);
+    cJSON_AddStringToObject(root, "drone_name", g_sim.drones[0].drone_name);
+    cJSON_AddNumberToObject(root, "ua_type", g_sim.drones[0].ua_type);
+    cJSON_AddNumberToObject(root, "latitude", g_sim.drones[0].latitude);
+    cJSON_AddNumberToObject(root, "longitude", g_sim.drones[0].longitude);
+    cJSON_AddNumberToObject(root, "altitude_msl", g_sim.drones[0].altitude_msl);
+    cJSON_AddNumberToObject(root, "altitude_agl", g_sim.drones[0].altitude_agl);
+    cJSON_AddNumberToObject(root, "speed_horizontal", g_sim.drones[0].speed_horizontal);
+    cJSON_AddNumberToObject(root, "speed_vertical", g_sim.drones[0].speed_vertical);
+    cJSON_AddNumberToObject(root, "heading", g_sim.drones[0].heading);
+    cJSON_AddNumberToObject(root, "status", g_sim.drones[0].status);
+    cJSON_AddStringToObject(root, "operator_id", g_sim.drones[0].operator_id);
+    
+    char *s = cJSON_PrintUnformatted(root);
+    httpd_resp_send(req, s, HTTPD_RESP_USE_STRLEN);
+    free(s);
+    cJSON_Delete(root);
     return ESP_OK;
 }
 
@@ -351,49 +373,40 @@ static esp_err_t api_sim_config_get(httpd_req_t *req) {
 static esp_err_t api_sim_config_post(httpd_req_t *req) {
     add_cors_headers(req);
     httpd_resp_set_type(req, "application/json");
-
-    char buf[2048];
+    char buf[4096];
     int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
     if (received > 0) {
         buf[received] = 0;
         cJSON *json = cJSON_Parse(buf);
         if (json) {
             cJSON *item;
-            item = cJSON_GetObjectItem(json, "uas_id");
-            if (item && cJSON_IsString(item)) strncpy(g_sim_config.uas_id, item->valuestring, CRID_UAS_ID_MAX_LEN);
-            item = cJSON_GetObjectItem(json, "drone_name");
-            if (item && cJSON_IsString(item)) strncpy(g_sim_config.drone_name, item->valuestring, CRID_UAS_ID_MAX_LEN);
-            item = cJSON_GetObjectItem(json, "ua_type");
-            if (item && cJSON_IsNumber(item)) g_sim_config.ua_type = (uint8_t)item->valueint;
-            item = cJSON_GetObjectItem(json, "latitude");
-            if (item && cJSON_IsNumber(item)) g_sim_config.latitude = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "longitude");
-            if (item && cJSON_IsNumber(item)) g_sim_config.longitude = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "altitude_geo");
-            if (item && cJSON_IsNumber(item)) g_sim_config.altitude_msl = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "altitude_geo");
-            if (item && cJSON_IsNumber(item)) g_sim_config.altitude_msl = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "speed_horizontal");
-            if (item && cJSON_IsNumber(item)) g_sim_config.speed_horizontal = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "speed_vertical");
-            if (item && cJSON_IsNumber(item)) g_sim_config.speed_vertical = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "heading");
-            if (item && cJSON_IsNumber(item)) g_sim_config.heading = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "status");
-            if (item && cJSON_IsNumber(item)) g_sim_config.status = (uint8_t)item->valueint;
-            item = cJSON_GetObjectItem(json, "operator_lat");
-            if (item && cJSON_IsNumber(item)) g_sim_config.operator_lat = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "operator_lon");
-            if (item && cJSON_IsNumber(item)) g_sim_config.operator_lon = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(json, "operator_id");
-            if (item && cJSON_IsString(item)) strncpy(g_sim_config.operator_id, item->valuestring, CRID_UAS_ID_MAX_LEN);
+            item = cJSON_GetObjectItem(json, "count");
+            if (item && cJSON_IsNumber(item)) {
+                int cnt = item->valueint;
+                if (cnt < 1) cnt = 1;
+                if (cnt > MAX_SIM_DRONES) cnt = MAX_SIM_DRONES;
+                if (cnt != g_sim.count) {
+                    g_sim.count = cnt;
+                    for (int i = 0; i < cnt; i++) {
+                        crid_config_init_random(&g_sim.drones[i], i, g_sim.center_lat, g_sim.center_lon);
+                    }
+                }
+            }
+            item = cJSON_GetObjectItem(json, "center_lat");
+            if (item && cJSON_IsNumber(item)) {
+                g_sim.center_lat = item->valuedouble;
+                // Re-init all drones with new center
+                for (int i = 0; i < g_sim.count; i++) {
+                    crid_config_init_random(&g_sim.drones[i], i, g_sim.center_lat, g_sim.center_lon);
+                }
+            }
+            item = cJSON_GetObjectItem(json, "center_lon");
+            if (item && cJSON_IsNumber(item)) g_sim.center_lon = item->valuedouble;
             
-            crid_nvs_save_sim_config(&g_sim_config, sizeof(g_sim_config));
-            ESP_LOGI(TAG, "Sim config saved");
+            crid_nvs_save_sim_config(&g_sim, sizeof(g_sim));
             cJSON_Delete(json);
         }
     }
-
     httpd_resp_send(req, "{\"ok\":true}", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
@@ -414,7 +427,54 @@ static esp_err_t api_clear_cache_post(httpd_req_t *req) {
  * ================================================================ */
 static esp_err_t root_handler(httpd_req_t *req) {
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_send(req, web_index_html_start, HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send(req, INDEX_HTML, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+
+/* ================================================================
+ * API: POST /api/trajectory - upload KMZ trajectory points
+ * ================================================================ */
+static esp_err_t api_trajectory_post(httpd_req_t *req) {
+    add_cors_headers(req);
+    httpd_resp_set_type(req, "application/json");
+    
+    char buf[8192];
+    int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+    if (received > 0) {
+        buf[received] = 0;
+        cJSON *json = cJSON_Parse(buf);
+        if (json) {
+            cJSON *pts = cJSON_GetObjectItem(json, "points");
+            if (pts && cJSON_IsArray(pts)) {
+                int count = cJSON_GetArraySize(pts);
+                if (count > 0 && count <= MAX_TRAJECTORY_POINTS) {
+                    double *lats = malloc(count * sizeof(double));
+                    double *lons = malloc(count * sizeof(double));
+                    if (lats && lons) {
+                        for (int i = 0; i < count; i++) {
+                            cJSON *pt = cJSON_GetArrayItem(pts, i);
+                            if (pt) {
+                                cJSON *lat = cJSON_GetObjectItem(pt, "lat");
+                                cJSON *lon = cJSON_GetObjectItem(pt, "lon");
+                                lats[i] = lat ? lat->valuedouble : 0;
+                                lons[i] = lon ? lon->valuedouble : 0;
+                            }
+                        }
+                        float spd = 1.0f;
+                        cJSON *s = cJSON_GetObjectItem(json, "speed");
+                        if (s && cJSON_IsNumber(s)) spd = (float)s->valuedouble;
+                        
+                        crid_web_set_trajectory(lats, lons, count, spd);
+                        free(lats);
+                        free(lons);
+                    }
+                }
+            }
+            cJSON_Delete(json);
+        }
+    }
+    httpd_resp_send(req, "{\"ok\":true}", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
@@ -422,6 +482,7 @@ static esp_err_t root_handler(httpd_req_t *req) {
  * URI Handlers
  * ================================================================ */
 static const httpd_uri_t uri_handlers[] = {
+    {.uri = "/api/trajectory", .method = HTTP_POST, .handler = api_trajectory_post},
     {.uri = "/",              .method = HTTP_GET,  .handler = root_handler},
     {.uri = "/index.html",    .method = HTTP_GET,  .handler = root_handler},
     {.uri = "/api/status",    .method = HTTP_GET,  .handler = api_status_get},
@@ -435,16 +496,15 @@ static const httpd_uri_t uri_handlers[] = {
 static httpd_handle_t g_server = NULL;
 
 void crid_web_init(void) {
-    // Initialize simulator config defaults
-    crid_config_init_default(&g_sim_config);
-    
-    // Try loading saved config
-    size_t loaded = crid_nvs_load_sim_config(&g_sim_config, sizeof(g_sim_config));
-    if (loaded > 0) {
-        ESP_LOGI(TAG, "Loaded saved sim config");
+    memset(&g_sim, 0, sizeof(g_sim));
+    g_sim.count = 1;
+    g_sim.center_lat = 39.9042;
+    g_sim.center_lon = 116.4074;
+    crid_config_init_random(&g_sim.drones[0], 0, g_sim.center_lat, g_sim.center_lon);
+    size_t loaded = crid_nvs_load_sim_config(&g_sim, sizeof(g_sim));
+    if (loaded > 0 && g_sim.count > 0) {
+        ESP_LOGI(TAG, "Loaded saved sim config: %d drones", g_sim.count);
     }
-    
-    g_sim_mutex = xSemaphoreCreateMutex();
 }
 
 void crid_web_start(void) {
@@ -455,6 +515,9 @@ void crid_web_start(void) {
     // Start HTTP server
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 16;
+    config.stack_size = 16384;
+    config.recv_wait_timeout = 10;
+    config.send_wait_timeout = 10;
     config.lru_purge_enable = true;
     config.recv_wait_timeout = 5;
     config.send_wait_timeout = 5;

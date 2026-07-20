@@ -1,6 +1,7 @@
 name: ESP32-C3 Build and Release
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
     tags:
@@ -24,8 +25,7 @@ jobs:
         python-version: '3.9'
 
     - name: Install dependencies
-      run: |
-        pip install setuptools wheel
+      run: pip install setuptools wheel
 
     - name: ESP-IDF Build (ESP32-C3)
       uses: espressif/esp-idf-ci-action@v1
@@ -34,18 +34,6 @@ jobs:
         target: esp32c3
         path: '.'
         command: idf.py build
-
-    - name: Merge binaries for flashing
-      run: |
-        pip install esptool
-        python -m esptool --chip esp32c3 merge_bin \
-          -o build/esp32-c3-rid-combined.bin \
-          --flash_mode dio \
-          --flash_freq 80m \
-          --flash_size 4MB \
-          0x0 build/bootloader/bootloader.bin \
-          0x10000 build/esp32_crid.bin \
-          0x8000 build/partition_table/partition-table.bin
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4

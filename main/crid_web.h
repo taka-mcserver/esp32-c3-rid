@@ -10,9 +10,12 @@ extern "C" {
 
 void crid_web_init(void);
 void crid_web_start(void);
-cn_crid_config_t *crid_web_get_sim_config(void);
+sim_control_t *crid_web_get_sim(void);
 bool crid_web_is_sim_running(void);
 void crid_web_set_sim_running(bool running);
+
+// Trajectory: set points from web API
+void crid_web_set_trajectory(const double *lats, const double *lons, int count, float speed);
 
 #ifdef __cplusplus
 }

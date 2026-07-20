@@ -322,11 +322,8 @@ bool crid_build_beacon_frame(cn_crid_config_t *config,
     frame[pos++] = 0x04;
 
     // --- SSID IE ---
-    frame[pos++] = 0x00; // IE ID
-    size_t ssid_len = strlen(config->ssid);
-    frame[pos++] = (uint8_t)ssid_len;
-    memcpy(&frame[pos], config->ssid, ssid_len);
-    pos += ssid_len;
+    frame[pos++] = 0x00; // SSID IE ID
+    frame[pos++] = 0x00; // Length=0 (hidden SSID, like DJI drones)
 
     // --- Supported Rates IE ---
     frame[pos++] = 0x01; // IE ID
