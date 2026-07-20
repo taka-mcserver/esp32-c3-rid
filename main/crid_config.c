@@ -121,8 +121,11 @@ void crid_config_init_random(cn_crid_config_t *cfg, int index, double center_lat
     crid_config_init_default(cfg);
     
     // Unique ID per drone
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
     snprintf(cfg->uas_id, CRID_UAS_ID_MAX_LEN + 1, "UAV%03d", index + 1);
-    snprintf(cfg->drone_name, CRID_UAS_ID_MAX_LEN + 1, "SIM-Drone-%02d", index + 1);
+    snprintf(cfg->drone_name, CRID_UAS_ID_MAX_LEN + 1, "SIM-Drone-%02d", (unsigned)(index + 1));
+#pragma GCC diagnostic pop
     
     // Random offset within 1km (~0.009 degrees lat, ~0.011 degrees lon)
     double lat_offset = ((double)(esp_random() % 2000) - 1000.0) / 111000.0;
