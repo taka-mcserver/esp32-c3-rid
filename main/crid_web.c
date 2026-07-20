@@ -525,9 +525,7 @@ void crid_web_start(void) {
     // Start HTTP server
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 16;
-    config.stack_size = 16384;
-    config.recv_wait_timeout = 10;
-    config.send_wait_timeout = 10;
+    config.stack_size = 8192;
     config.lru_purge_enable = true;
     config.recv_wait_timeout = 5;
     config.send_wait_timeout = 5;
